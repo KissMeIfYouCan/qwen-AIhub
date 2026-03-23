@@ -1,0 +1,27 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# Node / frontend
+frontend/node_modules/
+frontend/dist/
+
+# Local tool state
+.omc/
+.claude/
+backend/.omc/
+frontend/.omc/
+
+# Environment files
+.env
+.env.*
+
+# Large local model assets
+*.gguf
