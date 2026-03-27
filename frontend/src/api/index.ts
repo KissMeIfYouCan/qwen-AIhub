@@ -85,7 +85,7 @@ export const inspectionApi = {
 // 聊天相关接口
 export const chatApi = {
   // 发送问题
-  askQuestion: (data: any) => api.post('/chat/ask', data)
+  askQuestion: (data: any) => api.post('/chat/ask', data, { timeout: 60000 })
 }
 
 // 系统配置相关接口

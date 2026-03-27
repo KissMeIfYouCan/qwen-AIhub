@@ -1,0 +1,43 @@
+services:
+  backend:
+    image: qwen-aihub-backend:latest
+    build:
+      context: ./backend
+      args:
+        PYTHON_BASE_IMAGE: ${PYTHON_BASE_IMAGE:-python:3.11-slim}
+        PIP_INDEX_URL: ${PIP_INDEX_URL:-https://pypi.tuna.tsinghua.edu.cn/simple}
+      platforms:
+        - linux/amd64
+        - linux/arm64
+    container_name: qwen-backend
+    environment:
+      AI_PROVIDER: ollama
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
+      OLLAMA_MODEL: qwen3.5-9b:latest
+      AI_MAX_TOKENS: 512
+    volumes:
+      - ../:/workspace-root:ro
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    # 添加网络配置，避免 bridge 问题
+    network_mode: bridge
+
+  frontend:
+    image: qwen-aihub-frontend:latest
+    build:
+      context: ../frontend
+      args:
+        NODE_BASE_IMAGE: ${NODE_BASE_IMAGE:-node:20-alpine}
+        NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmmirror.com}
+        NGINX_BASE_IMAGE: ${NGINX_BASE_IMAGE:-nginx:1.27-alpine}
+      platforms:
+        - linux/amd64
+        - linux/arm64
+    container_name: qwen-frontend
+    depends_on:
+      - backend
+    ports:
+      - "3000:80"
+    restart: unless-stopped
+    network_mode: bridge

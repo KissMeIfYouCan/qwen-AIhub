@@ -18,9 +18,9 @@
         :rows="4"
         :placeholder="placeholder"
         :disabled="isProcessing"
+        resize="none"
         @keydown.ctrl.enter="handleSubmit"
         @keydown.meta.enter="handleSubmit"
-        resize="none"
       />
 
       <div class="input-toolbar">
@@ -46,17 +46,17 @@
       </div>
     </div>
 
-    <div class="response-area" v-if="lastResponse">
+    <div v-if="lastResponse" class="response-area">
       <div class="response-header">
-        <span>最近一次响应</span>
+        <span>最近一次回复</span>
         <div class="response-actions">
-          <el-tooltip content="复制响应">
-            <el-button size="small" text aria-label="复制响应" @click="copyResponse">
+          <el-tooltip content="复制回复">
+            <el-button size="small" text aria-label="复制回复" @click="copyResponse">
               <el-icon><CopyDocument /></el-icon>
             </el-button>
           </el-tooltip>
-          <el-tooltip content="清空响应">
-            <el-button size="small" text aria-label="清空响应" @click="clearResponse">
+          <el-tooltip content="清空回复">
+            <el-button size="small" text aria-label="清空回复" @click="clearResponse">
               <el-icon><Close /></el-icon>
             </el-button>
           </el-tooltip>
@@ -68,9 +68,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { computed, ref } from 'vue'
+import { storeToRefs } from 'pinia'
 import { Promotion, Close, CopyDocument } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
+import { useAppStore } from '@/stores'
+import { useSensorStore } from '@/stores'
+import { chatApi } from '@/api'
+import { buildAIContext } from '@/utils/aiContext'
+
+const appStore = useAppStore()
+const sensorStore = useSensorStore()
+const { devices, alarms } = storeToRefs(appStore)
+const { sensors } = storeToRefs(sensorStore)
 
 const inputText = ref('')
 const isProcessing = ref(false)
@@ -81,15 +91,15 @@ const aiStatus = ref({
   text: 'AI助手就绪'
 })
 
-const quickCommands = ref([
-  { id: 1, label: '查看状态', text: '显示所有传感器的当前状态' },
-  { id: 2, label: '生成报告', text: '生成过去24小时的设备运行报告' },
-  { id: 3, label: '异常分析', text: '分析当前系统中的异常情况' },
-  { id: 4, label: '优化建议', text: '提供系统性能优化建议' }
-])
+const quickCommands = [
+  { id: 1, label: '查看状态', text: '当前有哪些设备在线？' },
+  { id: 2, label: '告警摘要', text: '最近有什么告警？' },
+  { id: 3, label: '风险总结', text: '总结当前系统风险。' },
+  { id: 4, label: '巡检建议', text: '给我下一步巡检建议。' }
+]
 
 const placeholder = computed(() =>
-  isProcessing.value ? 'AI正在处理中...' : '输入指令或问题，AI 将为您提供智能分析与建议。Ctrl+Enter 发送。'
+  isProcessing.value ? 'AI 正在处理中...' : '输入监控问题或操作指令，AI 会基于当前页面数据回答。Ctrl+Enter 发送。'
 )
 
 const insertCommand = (text: string) => {
@@ -114,39 +124,36 @@ const copyResponse = async () => {
 }
 
 const handleSubmit = async () => {
-  if (!inputText.value.trim() || isProcessing.value) {
+  const question = inputText.value.trim()
+  if (!question || isProcessing.value) {
     return
   }
 
   aiStatus.value = {
     type: 'processing',
-    text: 'AI正在思考...'
+    text: 'AI 正在分析'
   }
   isProcessing.value = true
 
   try {
-    await new Promise(resolve => setTimeout(resolve, 1600))
+    const response = await chatApi.askQuestion({
+      question,
+      context: buildAIContext(devices.value, sensors.value, alarms.value)
+    })
 
-    const responses = [
-      '已完成传感器状态检查，发现 3 个设备需要关注。',
-      '系统运行正常，建议在下午 2 点进行例行维护。',
-      '检测到温度异常，建议先查看对应区域的历史趋势。',
-      '已整理一份执行建议，可继续生成详细报告。'
-    ]
-
-    lastResponse.value = responses[Math.floor(Math.random() * responses.length)]
+    lastResponse.value = response.answer || '当前未收到有效回复。'
     inputText.value = ''
     aiStatus.value = {
       type: 'success',
       text: '处理完成'
     }
-    ElMessage.success('指令执行成功')
+    ElMessage.success('AI 回复已更新')
   } catch {
     aiStatus.value = {
       type: 'error',
       text: '处理失败'
     }
-    ElMessage.error('指令执行失败，请重试')
+    ElMessage.error('AI 请求失败，请稍后重试')
   } finally {
     isProcessing.value = false
     window.setTimeout(() => {
@@ -276,6 +283,7 @@ const handleSubmit = async () => {
   background: var(--app-surface-muted);
   color: var(--app-text);
   line-height: 1.7;
+  white-space: pre-wrap;
 }
 
 @media (max-width: 768px) {

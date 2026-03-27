@@ -16,8 +16,14 @@ frontend/dist/
 # Local tool state
 .omc/
 .claude/
+.git_ssh/
+.git_ssh_home/
 backend/.omc/
 frontend/.omc/
+qwen/backend/.omc/
+qwen/backend/.pytest_cache/
+qwen/backend/app/.omc/
+qwen/backend/app/__pycache__/
 
 # Environment files
 .env

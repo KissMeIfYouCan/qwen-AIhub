@@ -190,6 +190,7 @@
                 </el-form-item>
                 <el-form-item label="模型名称">
                   <el-select v-model="configs.ai.model_name" placeholder="请选择模型">
+                    <el-option label="Ollama / Qwen3.5-9B" value="qwen3.5-9b:latest" />
                     <el-option label="GPT-4" value="gpt-4" />
                     <el-option label="Claude-3" value="claude-3" />
                     <el-option label="Qwen" value="qwen" />
@@ -306,9 +307,9 @@ const configs = reactive({
     reminder_hours: 24
   },
   ai: {
-    model_endpoint: 'http://localhost:11434/api/generate',
+    model_endpoint: 'http://localhost:11434/api/chat',
     api_key: '',
-    model_name: 'qwen',
+    model_name: 'qwen3.5-9b:latest',
     max_tokens: 2000,
     temperature: 0.7,
     enable_knowledge_base: true

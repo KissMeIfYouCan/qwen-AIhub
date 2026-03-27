@@ -30,6 +30,7 @@ except ModuleNotFoundError:
     UnicodeCIDFont = None
     canvas = None
 
+from .ai_service import get_local_ai_service
 from .gateway_adapter import GatewayAdapter, GatewayConfig, build_sample_payloads
 
 app = FastAPI(
@@ -272,7 +273,7 @@ system_config_store = {
     },
     "ai_model_endpoint": {
         "key": "ai_model_endpoint",
-        "value": "http://127.0.0.1:8000/api/chat/ask",
+        "value": "http://127.0.0.1:11434/api/chat",
         "description": "AI模型服务地址",
         "category": "ai"
     },
@@ -284,8 +285,14 @@ system_config_store = {
     },
     "ai_model_name": {
         "key": "ai_model_name",
-        "value": "qwen",
+        "value": "qwen3.5-9b:latest",
         "description": "模型名称",
+        "category": "ai"
+    },
+    "ai_model_path": {
+        "key": "ai_model_path",
+        "value": "",
+        "description": "本地GGUF模型路径",
         "category": "ai"
     },
     "ai_max_tokens": {
@@ -1589,6 +1596,35 @@ async def acknowledge_alarm(alarm_id: str, request: AlarmAcknowledgeRequest):
 
 @app.post("/api/diagnosis/analyze")
 async def analyze_device(request: DiagnosisRequest):
+    ai_service = get_local_ai_service()
+    normalized_device_id = normalize_device_id(request.device_id)
+    device = get_device_record(normalized_device_id) or {
+        "id": normalized_device_id,
+        "name": f"设备-{normalized_device_id}",
+        "status": "unknown",
+        "location": "未知",
+        "parameters": {},
+    }
+    ai_result = ai_service.analyze_device(
+        device=device,
+        diagnosis_type=request.diagnosis_type,
+        alarms=list_alarm_records(),
+    )
+    if ai_result:
+        return {
+            "id": "diag_001",
+            "device_id": normalized_device_id,
+            "device_name": device.get("name", f"设备-{normalized_device_id}"),
+            "diagnosis_type": request.diagnosis_type,
+            "status": "completed",
+            "confidence": ai_result["confidence"],
+            "summary": ai_result["summary"],
+            "findings": ai_result["findings"],
+            "recommendations": ai_result["recommendations"],
+            "created_at": datetime.now().isoformat(),
+            "completed_at": datetime.now().isoformat(),
+            "engine": ai_service.engine_name(),
+        }
     return {
         "id": "diag_001",
         "device_id": request.device_id,
@@ -1730,7 +1766,20 @@ def build_chat_answer(question: str, context: Optional[Dict[str, Any]]) -> Dict[
 
 @app.post("/api/chat/ask")
 async def ask_question(request: ChatRequest):
+    ai_service = get_local_ai_service()
+    ai_result = ai_service.answer_question(request.question, request.context)
+    if ai_result:
+        return {
+            **ai_result,
+            "timestamp": datetime.now().isoformat(),
+            "engine": ai_service.engine_name(),
+        }
     return build_chat_answer(request.question, request.context)
+
+
+@app.get("/api/ai/status")
+async def get_ai_status():
+    return get_local_ai_service().status()
 
 
 @app.get("/api/system-config")
